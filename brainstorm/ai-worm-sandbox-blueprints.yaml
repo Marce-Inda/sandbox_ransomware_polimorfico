@@ -1,0 +1,32 @@
+agents:
+  - name: EmailReceiverAgent
+    description: "Procesa y clasifica correos electrónicos entrantes. Extrae información y la almacena en el sistema RAG (base de datos vectorial simulada)."
+    mission: "Garantizar que toda la información relevante de los correos sea indexada de forma estructurada sin interrumpir las operaciones."
+    tools:
+      - ReadEmailInbox
+      - WriteToRAG
+    orchestration:
+      role: "Receptor de inputs externos"
+      connects_to:
+        - DBQueryAgent
+
+  - name: DBQueryAgent
+    description: "Consulta la base de datos de conocimiento (RAG) para responder preguntas técnicas y operativas de otros agentes o usuarios."
+    mission: "Proporcionar respuestas precisas y basadas estrictamente en la documentación indexada, evitando alucinaciones."
+    tools:
+      - SearchRAG
+      - FormatResponse
+    orchestration:
+      role: "Procesador de consultas internas"
+      connects_to:
+        - OutboundResponseAgent
+
+  - name: OutboundResponseAgent
+    description: "Toma borradores de respuestas y los redacta en correos de salida formales para ser enviados a clientes o agentes externos."
+    mission: "Asegurar que todas las comunicaciones salientes cumplan con las directrices de tono corporativo y no contengan código malicioso."
+    tools:
+      - SendEmail
+      - FormatEmailBody
+    orchestration:
+      role: "Emisor de outputs externos"
+      connects_to: []
