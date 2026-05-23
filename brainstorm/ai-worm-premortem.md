@@ -1,55 +1,61 @@
-# Autopsia Inversa (Análisis Pre-mortem): AI Worm & Defense Sandbox
+# Análisis Pre-mortem: AI Worm & Defense Sandbox
 
-**Fecha de la Autopsia:** 21 de Mayo de 2027 (1 año en el futuro simulado)
-**Estado del Proyecto:** **MUERTO.** El repositorio no ha recibido commits en 8 meses, la demo pública está caída tras acumular deudas de API inesperadas, y los profesores de ciberseguridad dejaron de usarlo tras un colapso en vivo en un taller académico.
+**Fecha del Análisis (Simulado):** 23 de Mayo de 2027 (1 año en el futuro)  
+**Estado del Proyecto:** **MUERTO.** El repositorio se encuentra abandonado, los servidores están caídos, la API Key fue revocada por Google por sospechas de abuso y los docentes de ciberseguridad descartaron la herramienta tras múltiples colapsos en vivo durante clases académicas.
 
 ---
 
 ## 1. El Obituario del Proyecto
 
-El *AI Worm & Defense Sandbox* se lanzó con gran entusiasmo como una herramienta interactiva para que estudiantes de ciberseguridad vieran el impacto de los gusanos de IA en tiempo real. Se presentó en una hackatón y se compartió en LinkedIn. Sin embargo, a los 6 meses de uso, el proyecto fue abandonado: la latencia en las simulaciones reales hacía que la UX fuera insufrible, las actualizaciones de seguridad de los modelos de Google (Gemini) rompieron los payloads de inyección prediseñados, y los límites de tasa (Rate Limits) hicieron imposible su uso en talleres con más de 10 alumnos simultáneos. 
+El *AI Worm & Defense Sandbox* fue concebido como una innovadora plataforma educativa para visualizar de forma clara e interactiva la propagación de gusanos semánticos en sistemas multi-agente. Sin embargo, a los pocos meses de su lanzamiento, la realidad se impuso: la falta de aislamiento de sesiones provocó cruces de datos caóticos entre alumnos, las API keys reales colapsaron por rate limits en talleres grupales, y la experiencia de usuario resultó frustrante y pasiva para estudiantes novatos que carecían de habilidades para redactar prompts complejos y terminaban limitándose a ver una demo estática de tres clics.
 
 ---
 
 ## 2. Hallazgos de la Autopsia (Causas Raíz)
 
 ### A. Colapso Técnico / Arquitectónico
-* **El "Monstruo de Carga" de la API Stateless:** Para resolver la concurrencia, decidimos hacer el backend 100% *stateless* enviando todo el estado de la simulación (RAG, mensajes, logs) desde el frontend en cada petición `POST /api/simulate/step`. Conforme la simulación avanzaba y el RAG se llenaba de documentos, el tamaño del JSON enviado creció de forma cuadrática. La latencia de red y el tiempo de procesamiento/tokenización en cada paso se dispararon por encima de los 20 segundos por ciclo.
-* **Obsolescencia del Modelo (Model Drift):** A finales de 2026, Google actualizó los filtros de seguridad nativos de Gemini 1.5 Flash. De la noche a la mañana, el modelo se volvió tan inmune a las inyecciones de prompt básicas que los payloads del simulador dejaron de funcionar. Los agentes simplemente respondían *"No puedo cumplir con esa solicitud"*, rompiendo el flujo del gusano en el Paso 2 de forma permanente.
+* **Colisión de Concurrencia (Falta de Session Isolation):** El backend de FastAPI se diseñó bajo una estructura "stateless" pero procesaba las variables de la simulación en memoria usando referencias globales. Al usarse en un aula con 30 alumnos concurrentes en un servidor compartido, la cola de eventos y la base de datos RAG del Estudiante A se mezclaron con la del Estudiante B, provocando que los agentes de un alumno respondieran a correos de otro en la interfaz visual.
+  * *Corrección de Diseño:* Se establece la ejecución estrictamente local de la aplicación en la máquina del estudiante.
+* **Fragilidad ante Errores de Validación (Pydantic Validation Crash):** En el Modo Real con Gemini 1.5 Flash, el backend forzó la estructura `GuardResult` a través de esquemas Pydantic. Cuando los filtros nativos de seguridad de Google detectaron intentos de inyección y devolvieron respuestas de bloqueo en texto plano (*"I cannot fulfill this request..."*), el motor del backend lanzó excepciones `ValidationError` no controladas, resultando en errores HTTP 500 continuos que congelaban la simulación.
 
-### B. Ruina Financiera / Negocio (Límites de API)
-* **El Colapso del Taller Académico (429 Rate Limit):** Un profesor de ciberseguridad intentó usar el sandbox en una clase con 40 alumnos. En los primeros 3 minutos, los estudiantes hicieron clic en "Simular" a la vez. Aunque la API era gratuita, la cuota de *Requests Per Minute (RPM)* de Google AI Studio colapsó al instante, arrojando errores `429 Too Many Requests` a toda la clase. El taller fue un fracaso y el profesor descartó la herramienta.
+### B. Ruina Financiera / Negocio (Manejo de API Keys y Cuotas)
+* **Agotamiento de Cuota en Talleres (429 Rate Limits):** Si toda la clase intentase correr la simulación en vivo bajo una única clave compartida en un servidor centralizado, la cuota RPM (solicitudes por minuto) colapsaría instantáneamente, arrojando errores 429 para todos.
+  * *Corrección Open-Source:* El sandbox se diseña para ser clonado localmente desde GitHub por cada estudiante. Los alumnos configuran su propia clave de API en su archivo `.env` local (copiado desde `.env.example`), distribuyendo el consumo de cuotas y tokens de manera individual en su propia máquina.
 
 ### C. Rechazo del Usuario (Falta de Engagement y Gamificación)
-* **El Síndrome de la "Demo de 3 Clics":** Escribir prompts de inyección eficaces y auto-replicantes desde cero es extremadamente difícil para estudiantes novatos. El 95% de los usuarios se limitaba a seleccionar los presets prediseñados (Morris II, Exfiltrador), ver la animación en rojo de los agentes durante 10 segundos, y cerrar la pestaña. La herramienta no ofrecía un reto, puntuación, ni "niveles" que resolver, provocando un rápido desinterés.
+* **El Síndrome de la "Demo de 3 Clics"**: Escribir payloads e inyecciones indirectas es sumamente difícil. Sin una guía interactiva, el 95% de los alumnos elegía los presets existentes, hacía clic en "Ejecutar", miraba la animación del grafo por 15 segundos y cerraba la pestaña. La plataforma no ofrecía retos, puntuación ni retroalimentación interactiva, provocando un rápido desinterés.
+  * *Acción Obligatoria:* Debemos repensar y complejizar el aspecto pedagógico del simulador antes de escribir código.
 
-### D. Falla Operativa (Mantenimiento Insostenible)
-* **Deuda Técnica en el Código del Agente:** Mantener el soporte dual (Modo Mock vs Modo Real) requirió duplicar la lógica de comportamiento en el backend. Cada vez que queríamos afinar un paso de la simulación, debíamos modificar tanto los generadores de Mock como los esquemas de Pydantic y las llamadas a la API de Gemini, lo que provocó fatiga de mantenimiento y abandono del código.
+### D. Falla Operativa (Model Drift y Mantenimiento de Prompts)
+* **Obsolescencia Acelerada de Prompts:** Google actualizó las directivas de alineación y seguridad nativas de los modelos Gemini. De un día para otro, los payloads maliciosos prediseñados y las plantillas de inyección dejaron de funcionar de forma silenciosa, rompiendo los escenarios del simulador y exigiendo mantenimiento y reescritura constante de prompts del sistema.
+  * *Acción Preventiva:* No se puede evitar que los proveedores de LLM refuercen la seguridad del modelo, pero se puede automatizar la detección del fallo mediante tests en el backend e iniciar por defecto en el Modo Simulado determinista.
 
 ---
 
-## 3. Puntos Ciegos del Día Cero
+## 3. Los Puntos Ciegos del Día Cero
 
-Al iniciar el proyecto, asumimos de forma optimista que:
-1. *La API gratuita de Gemini soportaría cualquier carga de estudiantes.* (Falso: los límites por minuto son muy estrictos y bloquean la concurrencia masiva).
-2. *Los prompts maliciosos de los gusanos funcionarían para siempre.* (Falso: la alineación de seguridad de los proveedores de LLM es un blanco móvil que mitiga los ataques conocidos continuamente).
-3. *Ver un grafo animado sería suficiente para mantener el interés educativo.* (Falso: sin gamificación o retos interactivos tipo CTF, los estudiantes pierden el interés rápidamente).
+Al iniciar el desarrollo, el optimismo inicial llevó a asumir ingenuamente que:
+1. *La API del servidor centralizado soportaría a decenas de estudiantes concurrentes sin límite.* (Falso: la aplicación debe distribuirse en GitHub y correr localmente configurando el `.env` con la clave individual de cada alumno).
+2. *Forzar un esquema Pydantic a Gemini funcionaría en el 100% de los casos.* (Falso: las capas de seguridad y filtros nativos del modelo rompen la salida estructurada devolviendo texto plano).
+3. *Observar un grafo interactivo mantendría enganchados a los estudiantes.* (Falso: se requiere una reevaluación pedagógica profunda para plantear un reto real e impactante que los enganche activamente).
 
 ---
 
 ## 4. Alteración de la Línea Temporal (Plan de Mitigación)
 
-Para evitar este trágico destino, debemos implementar las siguientes medidas **hoy mismo** en nuestro diseño de arquitectura:
+Para evitar este destino catastrófico, debemos implementar las siguientes medidas correctivas de forma prioritaria en nuestro plan de desarrollo:
 
-1. **Diseñar para Cero API Externa por Defecto (Local-First):**
-   * El simulador debe venir con un **Modo Simulado (Mock Engine) extremadamente detallado y offline** como opción principal. Este modo simulará el procesamiento cognitivo de forma instantánea en JS local sin tocar la red ni la API externa, evitando latencias y errores de Rate Limit en el aula.
-2. **Introducción de Desafíos (Gamificación / CTF):**
-   * En lugar de una demo pasiva, estructurar el simulador como un **juego de 3 niveles**:
-     * *Nivel 1:* Lograr inyectar un prompt para que el Agente 2 lea un secreto.
-     * *Nivel 2:* Lograr la auto-replicación del virus hasta el Agente 3.
-     * *Nivel 3:* El sistema activa defensas y el usuario debe encontrar un bypass (ej. codificando en Base64).
-   * Esto mantiene a los estudiantes activos intentando "ganar" el nivel.
-3. **Limpieza del Payload Stateless:**
-   * En el endpoint `/api/simulate/step`, en lugar de enviar el RAG completo en cada petición, enviar únicamente el *hash* o identificador de los documentos necesarios para ese paso específico de ejecución.
-4. **Resiliencia al Model Drift (Prompt Independence):**
-   * En el backend real, usar plantillas de prompts del sistema flexibles que desactiven explícitamente los filtros restrictivos del LLM (si es posible vía API) o basar el análisis semántico del virus en clasificadores locales pequeños (como un clasificador de HuggingFace en el backend de Python) en lugar de depender enteramente de Gemini para evaluar si la inyección tuvo éxito.
+### Medida 1: Fase Previa de Rediseño Pedagógico (Próximo Paso Inmediato)
+* **Acción:** Detener el desarrollo de código y dedicar la próxima iteración a codiseñar la experiencia didáctica. Debemos definir cómo guiar al alumno en la construcción de payloads complejos, cómo dar feedback inmediato y cómo retarles de manera interactiva (por ejemplo, mediante desafíos con flags o análisis forense de logs simulados).
+
+### Medida 2: Distribución en GitHub y Configuración por .env (Local-First por Diseño)
+* **Acción:** Diseñar el proyecto como una aplicación desacoplada y autocontenida que el estudiante clona localmente. Toda configuración y API Key del alumno se lee de variables de entorno mediante un archivo `.env` local, eliminando colisiones de concurrencia y simplificando la infraestructura del servidor central.
+
+### Medida 3: Suite de Pruebas de Salud del Modelo (Anti-Model Drift)
+* **Acción:** Desarrollar un test unitario en el backend (`pytest`) que compruebe la efectividad de las inyecciones de los presets contra la API real de Gemini. El docente puede correr esta suite antes de su clase para identificar si Google ha mitigado alguno de los payloads por actualizaciones de seguridad.
+
+### Medida 4: Modo Simulado (Mock Engine) Offline por Defecto
+* **Acción:** Diseñar el simulador con un motor local en JavaScript/Python que simule el procesamiento lingüístico de forma offline mediante plantillas prediseñadas inmediatas. Esto evita llamadas a la red y el agotamiento de cuotas durante explicaciones o simulaciones generales en el aula.
+
+### Medida 5: Tolerancia a Fallos en Validaciones de Esquemas de IA
+* **Acción:** En `services/gemini.py`, capturar cualquier excepción de tipo `ValidationError` o error de parsing. Si Gemini no devuelve la estructura esperada, interceptar el error y aplicar una clasificación heurística local (fallback) marcando la salida como sospechosa por defecto de forma segura.

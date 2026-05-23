@@ -4,6 +4,19 @@ Este documento detalla la estrategia de negocio, viabilidad técnica y pedagógi
 
 ---
 
+## Principio de Diseño: Separación de Ambientes (Simulado vs. Real)
+
+Para evitar malentendidos durante auditorías de seguridad, análisis de código o pruebas automatizadas, se establece la distinción estricta entre dos planos:
+
+1. **El Plano Simulado (Sandbox Académico)**:
+   * **Propósito**: Mostrar cómo se propaga y actúa un gusano de IA.
+   * **Comportamiento Esperado**: El malware *debe* propagarse lógicamente de un agente a otro y poder evadir firewalls simulados mediante técnicas que el alumno configure (como Base64 o traducción). Las infecciones, RAG leaks y alertas en este plano son **funcionalidades pedagógicas deseadas**, no fallos de seguridad de la aplicación.
+2. **El Plano Real (Infraestructura de la Plataforma)**:
+   * **Propósito**: Soportar la ejecución y visualización del simulador para múltiples usuarios concurrentes.
+   * **Comportamiento Esperado**: Debe ser **100% inmune** a vulnerabilidades reales de seguridad. Esto incluye el aislamiento absoluto de las sesiones en memoria (evitar que las simulaciones de diferentes alumnos se crucen), control de API keys de Gemini, sanitización real de parámetros y prevención de denegación de cartera (Wallet-Exhaustion) reales en el servidor.
+
+---
+
 ## 1. Arquitectura de Simulación Híbrida
 
 Para garantizar coste cero de API en talleres académicos, latencia de milisegundos y consistencia educativa, el simulador utiliza un diseño híbrido:

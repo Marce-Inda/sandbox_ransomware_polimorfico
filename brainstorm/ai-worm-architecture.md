@@ -4,6 +4,19 @@ Este documento especifica la arquitectura técnica completa del simulador de gus
 
 ---
 
+## Separación Estricta de Entornos (Meta-Seguridad vs. Simulación)
+
+A nivel de diseño de sistema, se implementa una separación lógica rígida para evitar falsos positivos de vulnerabilidad durante auditorías o tests de estrés:
+
+1. **Capa Simulada (Comportamiento Fisiológico del Malware)**:
+   * Toda acción del gusano (infección de agentes simulados, escritura de payloads en el outbox simulado y exfiltración de flags a la consola del alumno) es **lógica simulada**.
+   * Las defensas simuladas (Ingress/Egress/Least Privilege) están diseñadas para poder ser bypasseadas de manera intencionada por payloads de prueba, demostrando debilidades semánticas.
+2. **Capa Real (Meta-Seguridad del Servidor y Cliente)**:
+   * El código FastAPI, los manejadores HTTP, las validaciones Pydantic y las conexiones reales de API con Gemini están protegidos por controles reales.
+   * Ningún input del alumno debe poder inyectar código Python ejecutable en el backend, ni provocar bucles infinitos de red reales (Wallet-Exhaustion), ni cruzar datos con la sesión de otro alumno.
+
+---
+
 ## 1. Vista General del Sistema (System Overview)
 
 El simulador está diseñado bajo un patrón de **Backend Stateless con Ejecución Híbrida**:

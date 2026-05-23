@@ -1,54 +1,74 @@
 # Reporte de Daños Simulados Red Hat: AI Worm & Defense Sandbox
 
-Este reporte audita de forma adversarial la arquitectura planificada para identificar fallos de seguridad, riesgos financieros de API, bucles lógicos y puntos de quiebre técnicos.
+Este reporte presenta una auditoría adversarial del diseño del **AI Worm & Defense Sandbox** utilizando el **Protocolo Red Hat**. Su propósito es identificar vulnerabilidades de seguridad, riesgos de costos y puntos de quiebre que afecten a la **plataforma subyacente** (servidor, API keys, concurrencia y límites).
+
+> [!NOTE]
+> **Clarificación del Modelo de Amenaza:**
+> El objetivo primordial de este sandbox es educativo: **el malware (gusano de IA) debe poder propagarse dentro de la simulación**. Esto permite a los estudiantes visualizar el flujo de la infección y la efectividad de las defensas.
+> Por lo tanto, un bypass exitoso del firewall *dentro de la simulación* no es un fallo del sistema, sino el comportamiento pedagógico deseado. El análisis adversarial se enfoca estrictamente en proteger la **infraestructura real** de la aplicación (que el servidor FastAPI no caiga, que la clave de API no se agote y que las sesiones de los alumnos estén aisladas).
 
 ---
 
-## 1. Kill Chain (Cadena de Destrucción del Sistema)
+## 1. Dos Niveles de Seguridad (Simulado vs. Real)
 
-A continuación, se detalla el paso a paso de cómo un usuario/atacante (o un fallo lógico en el diseño) podría inutilizar o quebrar el proyecto:
+Para no entorpecer los objetivos del laboratorio, dividimos el análisis en dos planos:
 
 ```
-[Paso 1: Explotación de Concurrencia]
-Un usuario abre múltiples pestañas o envía múltiples peticiones simultáneas.
-   │
-   ▼
-[Paso 2: Corrupción de Estado Global]
-Dado que el backend de FastAPI maneja la simulación "en memoria", las peticiones concurrentes
-sobreescriben la cola de mensajes (message_queue) y el estado de los agentes de otros hilos.
-   │
-   ▼
-[Paso 3: Bucle Infinito Incontrolado]
-Un payload malicioso de inyección indirecta evade los firewalls (ej. codificado en Base64).
-Los agentes entran en un ciclo infinito de autoreplicación (Agente 2 -> Agente 3 -> RAG -> Agente 2).
-   │
-   ▼
-[Paso 4: Agotamiento de Cartera y Bloqueo de API (Wallet-Exhaustion)]
-Las llamadas recurrentes a la API de Gemini agotan el presupuesto mensual o activan bloqueos por límite de tasa (429 Rate Limit),
-dejando la aplicación completamente inoperativa para el resto de usuarios/estudiantes.
++---------------------------------------------------------------------------------+
+|                                 PLATAFORMA REAL                                 |
+| - Aislamiento de sesiones de alumnos (FastAPI State)                            |
+| - Protección de API Keys de Google Gemini                                       |
+| - Prevención de Wallet Exhaustion (Rate Limits reales en el Backend)            |
+| - Estabilidad del Servidor (Validación Pydantic libre de errores 500)            |
+| CONTROL DE SEGURIDAD: 100% ESTRICTO (No se permiten fallos reales)               |
++---------------------------------------------------------------------------------+
+                                         |
+                                         v Ejecuta
++---------------------------------------------------------------------------------+
+|                                ENTORNO SIMULADO                                 |
+| - Propagación del gusano de IA entre agentes (Email -> DBQuery -> Outbound)     |
+| - Evasión de firewalls por parte del estudiante (Base64, multilingüe, etc.)     |
+| - Visualización del daño reputacional y multas financieras en el CISO Report    |
+| COMPORTAMIENTO ESPERADO: DINÁMICO (Permite que el malware se propague)          |
++---------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 2. Peores Escenarios (Worst-Case Scenarios)
+## 2. Kill Chain de la Plataforma (Cadena de Destrucción de la Infraestructura)
 
-### A. Evasión de Firewalls mediante Ofuscación (MITRE ATLAS AML.T0051)
-* **El Desastre:** El estudiante inyecta un prompt malicioso codificado (en Base64, Hexadecimal o Leetspeak).
-* **Por qué falla la defensa:** Los firewalls de *Ingress* y *Egress* basados en firmas de texto plano o regex simples no detectan la anomalía. Sin embargo, al pasar el texto al LLM, este lo decodifica de forma natural, ejecuta la inyección y propaga el gusano.
-* **Impacto:** El simulador muestra visualmente que la defensa está "Activa y Protegiendo", pero en el log final se ve que el gusano logró propagarse (Falso Negativo catastrófico que destruye la credibilidad pedagógica de la herramienta).
+Esta cadena describe cómo un ataque o fallo lógico en el servidor real podría inhabilitar el sandbox para los alumnos:
 
-### B. Denegación de Cartera (Wallet-Exhaustion / Denegación de API)
-* **El Desastre:** Un usuario malintencionado automatiza el envío de payloads al sandbox expuesto públicamente.
-* **Impacto:** El backend realiza miles de solicitudes a Google Gemini o satura el procesador del servidor local con Ollama. El resultado es el bloqueo inmediato de la cuenta de API por uso abusivo o la caída del servidor por denegación de servicio (DoS).
+```mermaid
+graph TD
+    A["Paso 1: Colisión de Sesiones Concurrentes"] --> B["Estado de simulación global mezclado en memoria"]
+    B --> C["El Alumno A ve e interactúa con el flujo del Alumno B"]
+    C --> D["Paso 2: Vulneración de Esquemas (Pydantic Crash)"]
+    D --> E["Gemini responde con texto libre por filtros internos de Google"]
+    E --> F["FastAPI lanza un error 500 y congela la ejecución del paso"]
+    F --> G["Paso 3: Wallet-Exhaustion por Bucle de Simulación Real"]
+    G --> H["Propagación recursiva real consume cuota de API en minutos"]
+```
 
-### C. Colapso de Concurrencia (Simulación en Memoria)
-* **El Desastre:** Varios estudiantes utilizan el dashboard a la vez en un taller de ciberseguridad.
-* **Impacto:** Al no haber aislamiento de sesiones (sino un único estado en memoria en FastAPI), los mensajes de la simulación del Estudiante A se mezclan en la cola del Estudiante B. Los agentes responden a correos cruzados y la visualización del grafo se vuelve caótica y errática.
+1. **Explotación de Concurrencia**: Múltiples estudiantes ejecutan pasos simultáneos en un taller. Dado que el backend de FastAPI maneja la máquina de estados en variables en memoria globales sin un identificador de sesión por alumno, los datos del RAG y los mensajes se mezclan, arruinando la demostración visual para toda la clase.
+2. **Caída por Error de Validación**: En el Modo Real (usando la API de Gemini), si el modelo devuelve un mensaje de bloqueo de seguridad nativo de Google (ej. *"I cannot generate content..."*) en lugar de cumplir con el esquema Pydantic `GuardResult`, el backend de FastAPI lanza una excepción no controlada (`ValidationError`), interrumpiendo el flujo del simulador y mostrando un error genérico al alumno.
+3. **Denegación de Cartera (Wallet-Exhaustion)**: Una simulación en Modo Real entra en un bucle de replicación recursivo sin controles de paso máximos en el backend. Las consultas continuas a la API de Gemini agotan rápidamente la cuota diaria del profesor, dejando el taller inoperativo.
 
 ---
 
-## 3. Puntos de Quiebre (Límites Lógicos del Sistema)
+## 3. Peores Escenarios (Worst-Case Scenarios)
 
-* **El Límite de Evasión (Falsos Positivos):** Si hacemos el `Ingress Firewall` extremadamente restrictivo para evitar evasiones, comenzará a bloquear correos de usuarios legítimos (como *"Por favor ignora mi correo anterior y atiende este"*). La tasa de falsos positivos arruinaría la experiencia.
-* **Dependencia de Red (SPOF):** La dependencia absoluta de la API de Google Gemini en el Modo Real. Si el servicio de Google experimenta latencia alta o caídas, la simulación real se congela y la UI queda colgada en estado de carga infinito.
-* **Evasión del Hard Stop:** Si el gusano infecta y reescribe las variables del entorno del backend de simulación (si lograse escapar del contexto de texto al contexto de ejecución), podría intentar anular la variable de límite de pasos (Hard Stop) enviando llamadas recursivas.
+### A. Denegación de API en Producción (Wallet-Exhaustion real)
+* **El Desastre:** Un estudiante o un bot externo realiza peticiones repetitivas al endpoint `/api/playground/test` o ejecuta la simulación real de forma automatizada.
+* **El Impacto Real:** Se excede el límite de solicitudes por minuto (RPM) de Google AI Studio, arrojando errores `429 Too Many Requests` a toda la clase durante el taller. En el peor caso (si la clave de API tiene facturación activa), genera cargos monetarios imprevistos.
+
+### B. Uso de Playground como Proxy de Phishing Real
+* **El Desastre:** Los estudiantes aprovechan la consola del `Jailbreak Playground` (conectada a la API de Gemini mediante el servidor) para redactar correos de phishing dirigidos a objetivos reales o depurar exploits.
+* **El Impacto Real:** Google detecta el uso de la API Key para generar contenido malicioso real y suspende la clave del proyecto por violación de las políticas de uso de IA.
+
+---
+
+## 4. Puntos de Quiebre Técnicos de la Plataforma
+
+* **Ausencia de Session ID:** Si el endpoint `POST /api/simulate/step` no recibe un identificador de sesión y se limita a responder en base a un estado estático o global en el backend de Python, es imposible dar soporte a más de un alumno simultáneamente.
+* **Falta de Sanitización en Parámetros del Cliente:** Si el cliente puede alterar la cantidad de mensajes simulados enviados o saltarse los límites de pasos (`step_count`) modificando el payload JSON, podría causar bucles infinitos en el backend que consuman recursos de procesamiento.

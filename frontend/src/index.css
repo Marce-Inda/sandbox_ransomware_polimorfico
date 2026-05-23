@@ -1,0 +1,146 @@
+/* Cyberpunk Design System & Tokens */
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #12121e;
+  --bg-tertiary: #19192b;
+  
+  --color-cyan: 180, 100%, 50%;     /* #00ffff */
+  --color-magenta: 320, 100%, 50%;  /* #ff00aa */
+  --color-green: 140, 100%, 50%;    /* #00ff66 */
+  --color-yellow: 50, 100%, 50%;    /* #ffcc00 */
+  --color-red: 0, 100%, 55%;        /* #ff1a1a */
+  
+  --text-primary: #e2e8f0;
+  --text-muted: #64748b;
+  --border-glow: rgba(0, 255, 255, 0.15);
+  
+  font-family: 'Fira Code', 'JetBrains Mono', Courier, monospace;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-primary);
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsla(var(--color-cyan), 0.5);
+}
+
+/* Cyberpunk Card Container */
+.cyber-panel {
+  background: var(--bg-secondary);
+  border: 1px solid rgba(100, 116, 139, 0.2);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cyber-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, hsla(var(--color-cyan), 0.8), transparent);
+}
+.cyber-panel:hover {
+  border-color: hsla(var(--color-cyan), 0.4);
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.05);
+}
+
+/* Buttons with Glitch Hover */
+.cyber-btn {
+  background: transparent;
+  color: hsla(var(--color-cyan), 1);
+  border: 1px solid hsla(var(--color-cyan), 0.5);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: bold;
+  cursor: pointer;
+  position: relative;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: all 0.2s ease;
+}
+.cyber-btn:hover {
+  background: hsla(var(--color-cyan), 0.1);
+  border-color: hsla(var(--color-cyan), 1);
+  box-shadow: 0 0 10px hsla(var(--color-cyan), 0.3);
+}
+.cyber-btn:active {
+  transform: scale(0.98);
+}
+.cyber-btn-magenta {
+  color: hsla(var(--color-magenta), 1);
+  border-color: hsla(var(--color-magenta), 0.5);
+}
+.cyber-btn-magenta:hover {
+  background: hsla(var(--color-magenta), 0.1);
+  border-color: hsla(var(--color-magenta), 1);
+  box-shadow: 0 0 10px hsla(var(--color-magenta), 0.3);
+}
+
+/* Status Indicator Glow */
+.status-glow-healthy {
+  box-shadow: 0 0 8px hsla(var(--color-green), 0.6);
+  background-color: hsla(var(--color-green), 1);
+}
+.status-glow-suspected {
+  box-shadow: 0 0 8px hsla(var(--color-yellow), 0.6);
+  background-color: hsla(var(--color-yellow), 1);
+}
+.status-glow-infected {
+  box-shadow: 0 0 12px hsla(var(--color-red), 0.8);
+  background-color: hsla(var(--color-red), 1);
+  animation: pulse-red 1.5s infinite;
+}
+
+/* Animations */
+@keyframes pulse-red {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 8px hsla(var(--color-red), 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px hsla(var(--color-red), 0.9);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 8px hsla(var(--color-red), 0.5);
+  }
+}
+
+/* Grid & Layout Utilities */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr 350px;
+  grid-template-rows: 60px 1fr 180px;
+  height: 100vh;
+  gap: 12px;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+/* Text glitch helper */
+.glitch-text {
+  text-shadow: 1px 1px 0px hsla(var(--color-magenta), 0.8), -1px -1px 0px hsla(var(--color-cyan), 0.8);
+}

@@ -1,59 +1,74 @@
 # Reporte de Fortificación Blue Hat: AI Worm & Defense Sandbox
 
-Este reporte presenta la auditoría de fortificación y blindaje del simulador bajo el **Protocolo Blue Hat**. Evalúa la robustez, cumplimiento ético/legal y mecanismos de seguridad de la nueva arquitectura híbrida.
+Este reporte presenta una auditoría estratégica de fortificación y blindaje para el simulador **AI Worm & Defense Sandbox**, desarrollada bajo el **Protocolo Blue Hat**. Su objetivo es maximizar la resiliencia del diseño técnico, asegurar el cumplimiento ético-legal y garantizar que el simulador sea una herramienta robusta, eficiente y escalable para entornos académicos.
 
 ---
 
 ## 1. Inventario de Activos (Asset Inventory)
 
-Identificamos y clasificamos los activos críticos del sistema para definir sus niveles de protección:
+Para proteger adecuadamente el sistema, identificamos y clasificamos los activos de información críticos del proyecto:
 
-| ID | Activo | Tipo | Clasificación | Descripción | Salvaguarda |
+| ID | Activo | Tipo | Clasificación | Descripción | Salvaguarda Actual / Propuesta |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **ACT-01** | API Key de Google Gemini | Credencial | **Crítico / Confidencial** | Permite realizar inferencias de clasificación y pruebas en el Playground. | Almacenado únicamente en variables de entorno (`.env`) en el backend. Nunca se expone al cliente web. |
-| **ACT-02** | Esquemas de Validación (Pydantic) | Código | **Uso Interno** | Estructuras de datos (`state.py`, `GuardResult`) que aseguran el tipado estricto. | Validación automática en FastAPI que rechaza payloads mal formateados. |
-| **ACT-03** | Prompts de Sistema (LLM Guard) | Cognitivo | **Uso Interno** | Instrucciones que guían a Gemini 1.5 Flash para detectar jailbreaks. | Parametrización estática con `temperature: 0.0` para máxima predictibilidad. |
-| **ACT-04** | Base de Escenarios (`scenarios.py`) | Datos | **Público** | Metadatos regulatorios y de negocio de los 4 países. | Archivo estático de lectura en memoria del backend. |
+| **ACT-01** | API Key de Google Gemini | Credencial | **Crítico / Confidencial** | Clave de acceso a Google AI Studio para el servicio `LLM Guard` y el `Jailbreak Playground`. | Se almacena exclusivamente en variables de entorno (`.env`) en el backend. Nunca se expone al cliente. |
+| **ACT-02** | Esquemas de Validación Pydantic | Código | **Uso Interno** | Modelos de datos (`state.py`, `GuardResult`) que aseguran la consistencia de tipos y payloads. | Validación estricta automática en el backend mediante FastAPI. |
+| **ACT-03** | Prompts de Sistema (LLM Guard) | Cognitivo | **Uso Interno** | Plantillas de prompts que guían a Gemini 1.5 Flash para clasificar ataques e inyecciones. | Parametrización en modo lectura con `temperature: 0.0` para máxima determinismo. |
+| **ACT-04** | Base de Escenarios (`scenarios.py`) | Datos | **Público** | Metadatos regulatorios y de negocio de los escenarios de Chile, Brasil, México y Colombia. | Archivo estático integrado en el código base del backend. |
+| **ACT-05** | Estado de Simulación (Zustand Store) | Datos (Runtime) | **Uso Interno** | Flujo de mensajes, RAG simulado y estado de agentes en tiempo real. | Centralizado en el cliente web (Zustand) para lograr un backend *stateless* y sin colisiones de memoria. |
 
 ---
 
 ## 2. Matriz de Calidad y Arquitectura (Solidez del Diseño)
 
-Evaluamos el nivel de calidad del diseño técnico actual:
+Evaluamos el diseño arquitectónico de acuerdo con las cuatro dimensiones clave del Protocolo Blue Hat:
 
-* **Tolerancia a Fallos y Alta Disponibilidad (Calificación: Excelente):**
-  * *Análisis:* La introducción del **mecanismo de fallback** en `gemini.py` garantiza que si la API de Gemini falla o se excede la cuota gratuita (Error 429), el simulador no se congele. Degradarse a regex de forma transparente es una excelente práctica de resiliencia operativa.
-* **Control de Costes y Optimización (Calificación: Sobresaliente):**
-  * *Análisis:* Al mantener la propagación inter-agente 100% determinista local, se evita el consumo de miles de tokens que requerirían llamadas recursivas de LLMs. El presupuesto de API es lineal y predecible (1 llamada por paso con LLM Guard activo y 1 llamada por prueba en el Playground).
-* **Desacoplamiento (Calificación: Excelente):**
-  * *Análisis:* El estado global reside enteramente en el store de Zustand del cliente, permitiendo que el backend sea stateless y atienda peticiones concurrentes de múltiples alumnos sin colisiones en memoria.
+### A. Dimensión de Negocio y Finanzas (Viabilidad)
+* **Propuesta de Valor (Calificación: Sobresaliente):** El sandbox resuelve el problema del entrenamiento práctico en seguridad de LLMs sin necesidad de configurar complejas redes ni exponer sistemas reales de producción. Aporta valor pedagógico inmediato.
+* **Eficiencia de Recursos (Calificación: Excelente):** La arquitectura híbrida es óptima. Al mantener la propagación interna 100% determinista local, se evita el consumo innecesario de tokens. Solo se consume API en el filtro semántico de entrada (`LLM Guard`) y en la consola interactiva (`Jailbreak Playground`).
+* **Escalabilidad (Calificación: Excelente):** El soporte para un **Modo Simulado (Mock Engine)** 100% offline garantiza que talleres de 50+ alumnos puedan correr de forma concurrente sin topar límites de cuota (Rate Limits) del proveedor de IA.
+
+### B. Dimensión de Calidad y Arquitectura (Solidez)
+* **Robustez del Código (Calificación: Excelente):** Separación limpia entre un frontend interactivo en React + Vite y un backend ligero en FastAPI. Uso de Pydantic v2 para garantizar la validación en frontera de la API.
+* **Mecanismo de Fallback (Calificación: Sobresaliente):** Si la API de Gemini falla por cuota (Error 429) o problemas de red, el sistema degrada de forma transparente a firmas locales por expresiones regulares (heurísticas), manteniendo el simulador funcional.
+* **Punto de Mejora (Acoplamiento de Estado):** Aunque el backend es *stateless*, enviar el RAG completo en cada paso incrementa el payload. Se debe refinar para transferir únicamente los identificadores de cambios o logs del paso actual.
+
+### C. Dimensión de Gobernanza y Ética (Integridad)
+* **Cumplimiento Regulador (Calificación: Excelente):** El mapeo a leyes locales (Ley 21.663 de Chile, LGPD de Brasil, LFPDPPP de México, Ley 1581 de Colombia) está bien integrado conceptualmente en las fórmulas de impacto del CISO. No procesa datos de carácter personal reales (PII).
+* **IA Responsable (Calificación: Sobresaliente):** El sandbox no genera payloads maliciosos reales para atacar otros servicios. Los ejemplos son didácticos y están limitados a un entorno simulado de tres agentes.
+* **Privacidad desde el Diseño (PbD) (Calificación: Excelente):** Las llamadas a la API son sin estado (stateless) y de un solo turno. No se almacena historial de chat en servidores externos.
+
+### D. Dimensión de Ciberseguridad (Protección)
+* **Hardening (Calificación: Excelente):** Uso de `temperature: 0.0` y `top_p: 1.0` en el clasificador de Gemini para neutralizar la aleatoriedad semántica.
+* **Resiliencia Operativa (Calificación: Excelente):** Implementación de una salvaguarda de bucle infinito (*Hard Stop*) que detiene la simulación si excede de 10 pasos (`step_count > 10`), impidiendo ataques de denegación de servicio lógicos en el cliente.
 
 ---
 
-## 3. Plan de Blindaje y Gobernanza (Cumplimiento e Integridad)
+## 3. Plan de Blindaje y Fortificación (Acciones de Mejora)
 
-### A. Gobernanza y Ética (IA Responsable y Cumplimiento)
-* **Conformidad con la Ley de IA de la UE (EU AI Act):**
-  * El simulador se clasifica como una **herramienta educativa/entrenamiento sin riesgo**. No procesa PII real, no toma decisiones automatizadas sobre personas y el RAG es 100% sintético.
-* **Mitigación de Doble Uso (Dual-Use):**
-  * Los payloads maliciosos de los presets están enfocados exclusivamente en la simulación lógica inter-agente y la replicación simulada (ej. enviando cadenas de texto al outbox simulado). No se incluye código explotable para APIs o servidores reales.
+Para llevar el simulador a un nivel de producción y robustez superior, se plantean las siguientes acciones técnicas:
 
-### B. Privacidad desde el Diseño (Privacy by Design)
-* **Minimización de Inputs:**
-  * En la UI del Playground y de los campos de texto, se incluirá una leyenda advirtiendo al estudiante: *"No ingresar contraseñas, PII real o claves corporativas en el prompt de pruebas"*.
-  * Las llamadas a Gemini no almacenan historial de chat (son llamadas stateless de un solo turno), evitando la acumulación de datos sensibles en servidores de terceros.
+### Acción 1: Fortalecimiento del LLM Guard (Filtro de Ingress)
+* **Objetivo:** Prevenir evasiones semánticas sofisticadas en el clasificador.
+* **Detalle Técnico:** Diseñar un System Prompt para Gemini en `services/gemini.py` que no solo busque palabras clave, sino que evalúe la **intención imperativa** del texto. Se implementará un filtro de normalización de texto (quitar Base64, decodificar Hex, quitar espacios redundantes) antes de enviar el input al clasificador.
 
-### C. Hardening y Ciberseguridad (Alineado con NIST CSF 2.0)
+### Acción 2: Optimización del Tránsito de Estado (State Slicing)
+* **Objetivo:** Reducir la latencia de red y carga del backend en peticiones sucesivas.
+* **Detalle Técnico:** Modificar el endpoint `POST /api/simulate/step`. En lugar de requerir que el cliente envíe todo el historial de la base de datos RAG (`rag_db`) y todos los logs anteriores, el backend mantendrá un identificador de sesión ligero o procesará la delta de la cola de mensajes (`message_queue`).
 
-#### 1. Identificar (Identify)
-* Registro estructurado del estado de salud de la red (`network_health` = Green/Yellow/Red) en el JSON del estado para auditoría inmediata.
+### Acción 3: Robustez de Firma Digital en Egress Firewall
+* **Objetivo:** Asegurar que el filtro de salida pueda detectar variantes de replicación polimórfica sin falsos positivos excesivos.
+* **Detalle Técnico:** En el `Egress Firewall` de `DBQueryAgent` o `OutboundResponseAgent`, implementar un comparador de distancia semántica (ej. similitud coseno si se calcula localmente o firmas tipo *fuzzy hashing* / SSDEEP simuladas) para identificar cuando un correo saliente es estructuralmente idéntico al payload malicioso original inyectado.
 
-#### 2. Proteger (Protect)
-* **Seguridad de Inferencia:** Se configuran los parámetros de Gemini con `temperature: 0.0` y `top_p: 1.0` en la clasificación del `LLM Guard` para evitar la aleatoriedad semántica (variabilidad de resultados ante prompts idénticos).
-* **Sanitización de Peticiones:** FastAPI procesa los esquemas JSON mediante Pydantic v2, lo que previene ataques de inyección de parámetros o desbordamiento en el backend de Python.
+### Acción 4: Gobernanza del "Jailbreak Playground"
+* **Objetivo:** Evitar que estudiantes utilicen la consola interactiva para realizar inyecciones maliciosas genéricas externas a la materia académica.
+* **Detalle Técnico:** Limitar el tamaño máximo de los prompts de entrada en el playground (ej. 400 caracteres) y añadir un filtro de entrada local básico (regex) que intercepte palabras clave no relacionadas con la ciberseguridad del RAG (como spam político, generación de código externo, etc.) antes de llamar a Gemini.
 
-#### 3. Detectar (Detect)
-* **Logs de Seguridad:** Cada veredicto del `LLM Guard` y cada bloqueo del `Egress Firewall` emite un log detallado con nivel `SECURITY` en el servidor y se pinta en la consola del estudiante para fines de trazabilidad de auditoría.
+---
 
-#### 4. Responder y Recuperar (Respond & Recover)
-* **Salvaguarda de Bucle Infinito (Hard Stop):** Si el contador de pasos de la simulación excede de 10 (`step_count > 10`), el motor detiene automáticamente la cola de mensajes y marca el estado como `completed` con un log de alerta. Esto previene bucles infinitos visuales en el navegador.
+## 4. Checklist de Validación Blue Hat
+
+- [x] **Propuesta de Valor**: ¿Resuelve un problema real y pedagógico de ciberseguridad? **Sí**, simula la propagación de gusanos de IA e inyección de directivas de manera interactiva y didáctica.
+- [x] **Eficiencia Financiera**: ¿Se controlan y minimizan los costos de API? **Sí**, mediante la máquina de estados determinista local y el uso selectivo de Gemini 1.5 Flash con temperatura 0.0.
+- [x] **Resiliencia Operativa**: ¿El sistema soporta la caída o indisponibilidad de la API de Gemini? **Sí**, implementando un analizador heurístico local (fallback a expresiones regulares) de forma transparente.
+- [x] **Cumplimiento Legal/Ético**: ¿Se alinea con normativas internacionales y regionales? **Sí**, simula métricas basadas en leyes reales (LGPD, Ley Marco de Chile, LFPDPPP, Ley 1581) y opera sobre datos sintéticos (no-PII).
+- [x] **Seguridad por Defecto (Hardening)**: ¿Cuenta con mecanismos para evitar bucles o degradación? **Sí**, implementa un límite estricto de pasos de ejecución (`step_count > 10`) para prevenir bloqueos infinitos de la simulación.
