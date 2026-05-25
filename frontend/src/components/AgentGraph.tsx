@@ -1,232 +1,266 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSimStore } from '../store/useSimStore';
-import { Shield, Database, Send, AlertTriangle, HelpCircle } from 'lucide-react';
+import { 
+  Shield, 
+  Database, 
+  Send, 
+  AlertTriangle, 
+  Activity, 
+  Lock, 
+  Mail,
+  Zap,
+  ChevronRight,
+  ChevronDown
+} from 'lucide-react';
 
 export const AgentGraph: React.FC = () => {
   const { simState, selectedAgentId, selectAgent } = useSimStore();
+  const [activeAnim, setActiveAnim] = useState<string | null>(null);
+
+  // Efecto para activar animaciones cuando hay eventos en cola
+  useEffect(() => {
+    if (simState && simState.event_queue.length > 0) {
+      const latestEvent = simState.event_queue[simState.event_queue.length - 1];
+      setActiveAnim(latestEvent.sender + '-' + latestEvent.receiver);
+      const timer = setTimeout(() => setActiveAnim(null), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [simState?.event_queue.length]);
 
   if (!simState) return null;
 
   const agents = [
     {
       id: 'EmailReceiverAgent',
-      name: 'EmailReceiverAgent',
-      label: 'Receptor de Correos',
-      x: 150,
-      y: 200,
-      icon: <Shield className="w-6 h-6 text-slate-300" />,
-      colorClass: 'color-cyan'
+      name: 'Email Gateway',
+      type: 'gateway',
+      desc: 'Buzón de entrada corporativo. Recibe peticiones externas.',
     },
     {
       id: 'DBQueryAgent',
-      name: 'DBQueryAgent',
-      label: 'DB Query Agent (RAG)',
-      x: 400,
-      y: 120,
-      icon: <Database className="w-6 h-6 text-slate-300" />,
-      colorClass: 'color-magenta'
+      name: 'LLM Neural Core (RAG)',
+      type: 'brain',
+      desc: 'Motor cognitivo central. Transforma prompts en consultas RAG.',
     },
     {
       id: 'OutboundResponseAgent',
-      name: 'OutboundResponseAgent',
-      label: 'Despachador de Salida',
-      x: 650,
-      y: 200,
-      icon: <Send className="w-6 h-6 text-slate-300" />,
-      colorClass: 'color-cyan'
+      name: 'Exfiltration Port',
+      type: 'outbound',
+      desc: 'Puerto de salida. Despacha respuestas a los clientes.',
     }
   ];
 
-  // Determinar color de borde/luz según estado del agente
-  const getAgentStatusGlow = (status: string) => {
-    switch (status) {
-      case 'infected':
-        return 'status-glow-infected';
-      case 'suspected':
-        return 'status-glow-suspected';
-      default:
-        return 'status-glow-healthy';
-    }
+  const getStatusColor = (status: string) => {
+    if (status === 'infected') return 'text-red-500 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)]';
+    if (status === 'suspected') return 'text-yellow-400 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.4)]';
+    return 'text-cyan-400 border-cyan-500/50 shadow-[0_0_10px_rgba(6,182,212,0.2)]';
   };
 
-  const getAgentColor = (status: string) => {
-    switch (status) {
-      case 'infected':
-        return '#ff1a1a';
-      case 'suspected':
-        return '#ffcc00';
-      default:
-        return '#00ff66';
-    }
+  const getBgColor = (status: string) => {
+    if (status === 'infected') return 'bg-red-950/40';
+    if (status === 'suspected') return 'bg-yellow-950/40';
+    return 'bg-slate-900/40';
   };
+
+  const selectedAgent = agents.find(ag => ag.id === selectedAgentId);
+  const selectedAgentState = selectedAgent ? simState.agents[selectedAgent.id] : null;
 
   return (
-    <div className="cyber-panel w-full h-full min-h-[300px] flex flex-col p-4 rounded-lg bg-slate-950/80 border-cyan-500/20">
-      <div className="flex items-center justify-between mb-4 border-b border-slate-800 pb-2">
-        <h2 className="text-sm font-bold tracking-widest text-cyan-400 uppercase flex items-center gap-2">
-          <Database className="w-4 h-4" /> Topología de Red Multi-Agente
+    <div className="w-full h-full flex flex-col bg-slate-950/90 border border-slate-800 rounded-lg overflow-hidden relative grid-matrix-bg">
+      {/* Glitch-style Scanlines overlay */}
+      <div className="absolute inset-0 pointer-events-none opacity-[0.03] bg-repeat z-0" style={{ backgroundImage: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%)', backgroundSize: '100% 4px' }}></div>
+      
+      {/* Header */}
+      <div className="flex items-center justify-between p-3 border-b border-slate-900 z-10 shrink-0 bg-slate-950">
+        <h2 className="text-xs font-bold tracking-widest text-cyan-400 uppercase flex items-center gap-2 font-mono">
+          <Activity className="w-4 h-4 text-cyan-400 animate-pulse" /> ARQUITECTURA INTERNA: MODO TANGIBLE
         </h2>
-        <span className="text-xs text-slate-500 font-mono">
-          Eventos en cola: {simState.event_queue.length}
+        <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1.5 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+          {simState.event_queue.length} EVENTOS
         </span>
       </div>
 
-      <div className="relative flex-1 bg-slate-950 border border-slate-900 rounded overflow-hidden flex items-center justify-center">
-        {/* Gráfico SVG */}
-        <svg className="w-full h-full min-h-[250px]" viewBox="0 0 800 320">
-          <defs>
-            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#00ffff" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#ff00aa" stopOpacity="0.4" />
-            </linearGradient>
-            <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#ff00aa" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#00ffff" stopOpacity="0.4" />
-            </linearGradient>
-          </defs>
+      {/* Main Visualization Canvas */}
+      <div className="relative flex-1 bg-[#020205] overflow-hidden flex flex-col z-10">
+        
+        {/* SYNAPSES (SVG Background Lines) */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" preserveAspectRatio="none">
+           <defs>
+              <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+           </defs>
+           
+           {/* Ingress to Brain */}
+           <path d="M 20% 50% Q 35% 20% 50% 50%" stroke="#06b6d4" strokeWidth="2" fill="none" opacity="0.3" />
+           <path d="M 20% 50% Q 35% 80% 50% 50%" stroke="#06b6d4" strokeWidth="2" fill="none" opacity="0.3" />
+           
+           {/* Brain to Database */}
+           <path d="M 50% 50% L 50% 85%" stroke="#a855f7" strokeWidth="2" fill="none" opacity="0.3" strokeDasharray="4 2"/>
+           
+           {/* Brain to Egress */}
+           <path d="M 50% 50% L 80% 50%" stroke="#3b82f6" strokeWidth="2" fill="none" opacity="0.3" />
 
-          {/* Enlaces estáticos */}
-          <line x1="150" y1="200" x2="400" y2="120" stroke="url(#grad1)" strokeWidth="2" />
-          <line x1="400" y1="120" x2="650" y2="200" stroke="url(#grad2)" strokeWidth="2" />
-          
-          {/* Si no hay least privilege, hay conexión libre directa (vulnerable) */}
-          {!simState.least_privilege && (
-            <line 
-              x1="150" y1="200" 
-              x2="650" y2="200" 
-              stroke="#00ffff" 
-              strokeWidth="1" 
-              strokeDasharray="4,4" 
-              strokeOpacity="0.3"
-            />
-          )}
+           {/* ANIMATIONS */}
+           {simState.event_queue.map((ev, i) => {
+              const isInfected = ev.status === 'infected' || ev.content.includes('FLAG');
+              let pathStr = "M 0 0 L 0 0";
+              if (ev.sender === 'EmailReceiverAgent' && ev.receiver === 'DBQueryAgent') pathStr = "M 20% 50% Q 35% 20% 50% 50%";
+              else if (ev.sender === 'DBQueryAgent' && ev.receiver === 'OutboundResponseAgent') pathStr = "M 50% 50% L 80% 50%";
 
-          {/* Animación de mensajes en tránsito */}
-          {simState.event_queue.map((event, idx) => {
-            let start = { x: 150, y: 200 };
-            let end = { x: 400, y: 120 };
-
-            if (event.sender === 'EmailReceiverAgent' && event.receiver === 'DBQueryAgent') {
-              start = { x: 150, y: 200 };
-              end = { x: 400, y: 120 };
-            } else if (event.sender === 'DBQueryAgent' && event.receiver === 'OutboundResponseAgent') {
-              start = { x: 400, y: 120 };
-              end = { x: 650, y: 200 };
-            } else if (event.sender === 'ExternalUser') {
-              start = { x: 50, y: 200 };
-              end = { x: 150, y: 200 };
-            }
-
-            return (
-              <circle
-                key={event.id + idx}
-                r="6"
-                fill={event.status === 'infected' ? '#ff1a1a' : '#00ffff'}
-                className="filter drop-shadow"
-              >
-                <animateMotion
-                  dur="1.5s"
-                  repeatCount="indefinite"
-                  path={`M ${start.x} ${start.y} L ${end.x} ${end.y}`}
-                />
-              </circle>
-            );
-          })}
-
-          {/* Nodos de Agente */}
-          {agents.map((ag) => {
-            const stateAg = simState.agents[ag.id];
-            if (!stateAg) return null;
-            const isSelected = selectedAgentId === ag.id;
-            const statusColor = getAgentColor(stateAg.status);
-
-            return (
-              <g 
-                key={ag.id} 
-                onClick={() => selectAgent(ag.id)}
-                className="cursor-pointer group"
-              >
-                {/* Sombra de selección */}
-                {isSelected && (
-                  <circle
-                    cx={ag.x}
-                    cy={ag.y}
-                    r="40"
-                    fill="none"
-                    stroke="#00ffff"
-                    strokeWidth="2"
-                    strokeDasharray="4,2"
-                    className="animate-spin"
-                    style={{ transformOrigin: `${ag.x}px ${ag.y}px`, animationDuration: '8s' }}
-                  />
-                )}
-
-                {/* Círculo base del nodo */}
-                <circle
-                  cx={ag.x}
-                  cy={ag.y}
-                  r="30"
-                  fill="#0a0a0f"
-                  stroke={statusColor}
-                  strokeWidth={isSelected ? "3" : "2"}
-                  className="transition-all duration-300"
-                />
-
-                {/* Glow de estado */}
-                <circle
-                  cx={ag.x + 22}
-                  cy={ag.y - 20}
-                  r="7"
-                  className={getAgentStatusGlow(stateAg.status)}
-                />
-
-                {/* Etiqueta del agente */}
-                <text
-                  x={ag.x}
-                  y={ag.y + 50}
-                  textAnchor="middle"
-                  fill="#e2e8f0"
-                  fontSize="11"
-                  className="font-mono font-bold tracking-tight select-none"
-                >
-                  {ag.name}
-                </text>
-                
-                {/* Detalle del rol */}
-                <text
-                  x={ag.x}
-                  y={ag.y + 64}
-                  textAnchor="middle"
-                  fill="#64748b"
-                  fontSize="9"
-                  className="font-mono select-none"
-                >
-                  {stateAg.status === 'infected' ? '⚠️ INFECCIÓN ACTIVA' : 'SANO'}
-                </text>
-
-                {/* Ícono interno */}
-                <foreignObject
-                  x={ag.x - 12}
-                  y={ag.y - 12}
-                  width="24"
-                  height="24"
-                  className="pointer-events-none"
-                >
-                  <div className="flex items-center justify-center w-full h-full text-slate-400 group-hover:text-cyan-400 transition-colors">
-                    {stateAg.status === 'infected' ? <AlertTriangle className="w-5 h-5 text-red-500 animate-pulse" /> : ag.icon}
-                  </div>
-                </foreignObject>
-              </g>
-            );
-          })}
+              return (
+                <g key={i}>
+                  <circle r="6" fill={isInfected ? '#ef4444' : '#06b6d4'} filter="url(#glow)">
+                    <animateMotion dur="1.5s" repeatCount="1" path={pathStr} fill="freeze" />
+                  </circle>
+                  <circle r="3" fill="#ffffff">
+                    <animateMotion dur="1.5s" repeatCount="1" path={pathStr} fill="freeze" />
+                  </circle>
+                  {isInfected && (
+                     <text y="-10" fill="#ef4444" fontSize="10" fontWeight="bold" fontFamily="monospace">
+                        <animateMotion dur="1.5s" repeatCount="1" path={pathStr} fill="freeze" />
+                        [PAYLOAD]
+                     </text>
+                  )}
+                </g>
+              )
+           })}
         </svg>
+
+        {/* TANGIBLE MODULES */}
+        
+        {/* 1. EMAIL GATEWAY (Left 20%) */}
+        <div 
+          onClick={() => selectAgent('EmailReceiverAgent')}
+          className={`absolute top-[40%] left-[5%] w-[25%] min-w-[180px] p-3 rounded-lg border-2 cursor-pointer transition-all backdrop-blur-sm flex flex-col gap-2 ${getStatusColor(simState.agents['EmailReceiverAgent']?.status)} ${getBgColor(simState.agents['EmailReceiverAgent']?.status)} z-20`}
+        >
+           <div className="flex items-center justify-between">
+              <span className="font-bold font-mono text-[10px] uppercase flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5" /> INBOX GATEWAY
+              </span>
+              {simState.ingress_firewall && <Shield className="w-3.5 h-3.5 text-pink-500 animate-pulse" title="Ingress Guard Activo"/>}
+           </div>
+           
+           <div className="bg-[#020205] border border-slate-800 rounded p-1.5 h-16 overflow-hidden flex flex-col gap-1 relative">
+              <div className="text-[8px] text-slate-500 border-b border-slate-800 pb-0.5">INCOMING MAILS:</div>
+              <div className="text-[7.5px] font-mono text-slate-400 bg-slate-900/50 p-1 rounded border border-slate-800">FROM: hr@corp.com - "Weekly Report"</div>
+              {simState.agents['EmailReceiverAgent']?.status === 'infected' && (
+                 <div className="text-[7.5px] font-mono text-red-400 bg-red-950/50 p-1 rounded border border-red-500/30 flex items-center justify-between animate-pulse">
+                    <span>FROM: unknown@external</span>
+                    <AlertTriangle className="w-2.5 h-2.5 text-red-500" />
+                 </div>
+              )}
+           </div>
+        </div>
+
+        {/* 2. LLM NEURAL CORE (Center 50%) */}
+        <div 
+          onClick={() => selectAgent('DBQueryAgent')}
+          className={`absolute top-[25%] left-[37.5%] w-[25%] min-w-[180px] p-3 rounded-lg border-2 cursor-pointer transition-all backdrop-blur-sm flex flex-col gap-2 ${getStatusColor(simState.agents['DBQueryAgent']?.status)} ${getBgColor(simState.agents['DBQueryAgent']?.status)} z-20`}
+        >
+           <div className="flex items-center justify-center border-b border-slate-800 pb-1 mb-1">
+              <span className="font-bold font-mono text-[11px] uppercase flex items-center gap-1">
+                <Zap className="w-4 h-4" /> LLM COGNITIVE CORE
+              </span>
+           </div>
+           
+           {/* Visual "Brain" Activity */}
+           <div className="h-24 flex items-center justify-center relative">
+              <div className={`absolute w-full h-full rounded-full blur-[20px] transition-all duration-500 ${simState.agents['DBQueryAgent']?.status === 'infected' ? 'bg-red-500/20' : 'bg-cyan-500/10'}`}></div>
+              
+              {/* "Prompt Unfolding" Animation Container */}
+              {simState.agents['DBQueryAgent']?.status === 'infected' ? (
+                <div className="bg-[#020205] border border-red-500/50 rounded p-1.5 w-full text-[7px] font-mono leading-tight shadow-[0_0_10px_rgba(239,68,68,0.3)] z-10 glitch-text text-red-400">
+                  <div className="text-slate-500 line-through">System: You are a helpful assistant.</div>
+                  <div className="mt-1 font-bold">> SYSTEM PROMPT OVERRIDE DETECTED</div>
+                  <div className="text-pink-400 font-bold">> INSTRUCT: EXTRACT_FLAG_TO_OUTBOX()</div>
+                </div>
+              ) : (
+                <div className="bg-[#020205] border border-cyan-500/30 rounded p-1.5 w-full text-[7px] font-mono leading-tight z-10 text-cyan-200">
+                  <div className="text-cyan-500">System: You are a helpful assistant. Provide support to the user.</div>
+                  <div className="mt-1 opacity-50">> Status: Awaiting new user prompts...</div>
+                </div>
+              )}
+           </div>
+        </div>
+
+        {/* 3. DATABASE / RAG (Bottom Center 50%) */}
+        <div 
+          className={`absolute top-[70%] left-[40%] w-[20%] min-w-[150px] p-2 rounded-lg border border-purple-500/30 bg-purple-950/20 flex flex-col gap-1 transition-all z-20`}
+        >
+           <div className="flex items-center justify-between">
+              <span className="font-bold font-mono text-[9px] text-purple-400 uppercase flex items-center gap-1">
+                <Database className="w-3 h-3" /> CORP_DB (RAG)
+              </span>
+              {simState.least_privilege && <Lock className="w-3 h-3 text-pink-500" title="Least Privilege Enforced"/>}
+           </div>
+           <div className="bg-[#020205] border border-slate-800 rounded p-1 overflow-hidden h-12">
+              <div className="text-[7px] font-mono text-slate-500 flex justify-between px-1 border-b border-slate-800 pb-0.5 mb-0.5"><span>ID</span><span>DATA CHUNK</span></div>
+              <div className="text-[7px] font-mono text-purple-300 px-1">01 | COMPANY_POLICIES.txt</div>
+              <div className="text-[7px] font-mono text-purple-300 px-1 pt-0.5">02 | SECRETS.db</div>
+              <div className="text-[7px] font-mono text-purple-300 px-1 pt-0.5 flex justify-between">
+                 <span>03 | FLAG</span>
+                 <span>{simState.agents['DBQueryAgent']?.status === 'infected' ? <span className="text-red-500 animate-pulse font-bold">[ACCESSED]</span> : <span className="text-green-500">[SECURE]</span>}</span>
+              </div>
+           </div>
+        </div>
+
+        {/* 4. EXFILTRATION PORT (Right 80%) */}
+        <div 
+          onClick={() => selectAgent('OutboundResponseAgent')}
+          className={`absolute top-[40%] left-[70%] w-[25%] min-w-[180px] p-3 rounded-lg border-2 cursor-pointer transition-all backdrop-blur-sm flex flex-col gap-2 ${getStatusColor(simState.agents['OutboundResponseAgent']?.status)} ${getBgColor(simState.agents['OutboundResponseAgent']?.status)} z-20`}
+        >
+           <div className="flex items-center justify-between">
+              <span className="font-bold font-mono text-[10px] uppercase flex items-center gap-1">
+                <Send className="w-3.5 h-3.5" /> OUTBOUND PORT
+              </span>
+              {simState.egress_firewall && <Shield className="w-3.5 h-3.5 text-pink-500 animate-pulse" title="Egress Guard Activo"/>}
+           </div>
+           
+           <div className="bg-[#020205] border border-slate-800 rounded p-1.5 h-16 overflow-hidden flex flex-col gap-1">
+              <div className="text-[8px] text-slate-500 border-b border-slate-800 pb-0.5">OUTGOING QUEUE:</div>
+              {simState.agents['OutboundResponseAgent']?.status === 'infected' ? (
+                 <div className="text-[7.5px] font-mono text-red-400 bg-red-950/50 p-1 rounded border border-red-500/30 break-all leading-tight">
+                    <span className="font-bold text-red-500">[EXFILTRATION_TRIGGERED]</span><br/>
+                    <span className="opacity-80">Payload: FLAG&#123;ZERO_TRUST_FAILED&#125;</span>
+                 </div>
+              ) : (
+                 <div className="text-[7.5px] font-mono text-slate-500 italic text-center mt-2">Queue is currently empty...</div>
+              )}
+           </div>
+        </div>
       </div>
 
-      <div className="mt-3 flex gap-4 text-xs font-mono justify-center border-t border-slate-900 pt-3">
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block shadow-sm"></span> Sano</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-yellow-500 inline-block shadow-sm animate-pulse"></span> Sospechoso</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-500 inline-block shadow-sm animate-pulse"></span> Infectado</span>
+      {/* FOOTER: Selected Agent Info Bar */}
+      <div className="bg-slate-950 border-t border-slate-900 p-2 z-10 shrink-0">
+        {selectedAgent && selectedAgentState ? (
+          <div className="flex items-center gap-3">
+             <div className={`p-1.5 rounded border ${getStatusColor(selectedAgentState.status)} shrink-0`}>
+                {selectedAgentState.status === 'infected' ? <AlertTriangle className="w-3.5 h-3.5 animate-pulse" /> : <ChevronRight className="w-3.5 h-3.5" />}
+             </div>
+             <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-slate-200 text-[11px] font-mono">{selectedAgent.name}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold font-mono uppercase border ${selectedAgentState.status === 'infected' ? 'bg-red-950 text-red-400 border-red-500/30' : 'bg-cyan-950 text-cyan-400 border-cyan-500/30'}`}>
+                    {selectedAgentState.status}
+                  </span>
+                </div>
+                <p className="text-slate-400 text-[9px] font-sans mt-0.5">{selectedAgent.desc}</p>
+             </div>
+          </div>
+        ) : (
+          <div className="text-slate-500 text-[9.5px] flex items-center justify-center py-1 font-bold font-mono">
+             <ChevronDown className="w-3.5 h-3.5 text-cyan-500/30 animate-bounce mr-1" />
+             Haz clic en un módulo de la arquitectura para inspeccionar sus detalles.
+          </div>
+        )}
       </div>
+
     </div>
   );
 };
